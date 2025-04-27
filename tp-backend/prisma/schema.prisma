@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js" // or "prisma-client-py" if Python
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Task {
+  id          Int         @id @default(autoincrement())
+  title       String
+  description String?
+  completed   Boolean     @default(false)
+  hourEntries HourEntry[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  invoices    Invoice[]   @relation("InvoiceTasks") // 👈 Many invoices (you'll mostly use 1 though)
+}
+
+model Invoice {
+  id             Int      @id @default(autoincrement())
+  invoiceNumber  String   @unique  // Make it unique
+  clientName     String
+  description    String
+  amount         Float
+  issuedAt       DateTime @default(now())
+  dueDate        DateTime
+  paid           Boolean  @default(false)
+  tasks          Task[]   @relation("InvoiceTasks") // (optional) linking tasks later
+}
+
+
+model HourEntry {
+  id          Int      @id @default(autoincrement())
+  taskId      Int?
+  task        Task?    @relation(fields: [taskId], references: [id])
+  date        DateTime
+  hours       Float
+  notes       String?
+}
+
+model ScheduleEvent {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  start       DateTime
+  end         DateTime
+}
