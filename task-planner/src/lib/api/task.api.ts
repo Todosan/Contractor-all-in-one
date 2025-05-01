@@ -1,3 +1,4 @@
+import { Task } from '@/types';
 import axios from 'axios';
 
 const API_URL = "http://localhost:8000"; // Replace with your actual backend URL
@@ -47,12 +48,13 @@ export async function createTask(task: { title: string; description?: string; co
 }
 
 // Update Task
-export const updateTask = async (taskId: number, task: { title: string; completed: boolean }) => {
+export const updateTask = async (taskId: number, data: Partial<Task>) => {
   try {
-    const response = await axios.put(`${API_URL}/tasks/${taskId}`, task);
+    const response = await axios.put(`${API_URL}/tasks/${taskId}`, data);
     return response.data;
   } catch (error) {
     console.error('Error updating task:', error);
-    throw new Error("Failed to update task");
+    throw error;
   }
 };
+
