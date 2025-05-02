@@ -39,7 +39,13 @@ export async function toggleTask(id: number, completed: boolean) {
 // Create New Task
 export async function createTask(task: { title: string; description?: string; completed?: boolean }) {
   try {
-    const response = await axios.post(`${API_URL}/tasks/`, task);
+    // Ensure all required fields are present
+    const taskData = {
+      title: task.title,
+      description: task.description || "",
+      completed: task.completed || false
+    };
+    const response = await axios.post(`${API_URL}/tasks/`, taskData);
     return response.data;
   } catch (error) {
     console.error('Error creating task:', error);
@@ -57,4 +63,3 @@ export const updateTask = async (taskId: number, data: Partial<Task>) => {
     throw error;
   }
 };
-

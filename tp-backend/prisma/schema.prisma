@@ -14,13 +14,13 @@ model Task {
   completed   Boolean     @default(false)
   hourEntries HourEntry[]
   createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  invoices    Invoice[]   @relation("InvoiceTasks") // 👈 Many invoices (you'll mostly use 1 though)
+  updatedAt   DateTime?   @updatedAt
+  invoices    Invoice[]   @relation("InvoiceTasks")
 }
 
 model Invoice {
   id             Int      @id @default(autoincrement())
-  invoiceNumber  String   @unique  // Make it unique
+  invoiceNumber  String   @unique
   clientName     String
   description    String
   amount         Float

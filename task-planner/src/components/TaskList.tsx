@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTaskContext } from '../context/TaskContext';
 
 const TaskList: React.FC = () => {
-  const { tasks, addTask, removeTask, toggleTaskStatus, modifyTask } = useTaskContext();
+  const { tasks, addTask, removeTask, modifyTask } = useTaskContext();
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
 

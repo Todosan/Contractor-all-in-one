@@ -7,7 +7,7 @@ router = APIRouter()
 
 class TaskIn(BaseModel):
     title: str
-    description: str = ""
+    description: str | None = None
     completed: bool = False
 
 @router.post("/tasks/")

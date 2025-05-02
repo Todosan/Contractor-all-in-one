@@ -3,6 +3,7 @@ import { createContext, useContext, useState, ReactNode } from 'react';
 
 interface InvoiceContextType {
   invoices: Invoice[];
+  setInvoices: React.Dispatch<React.SetStateAction<Invoice[]>>;
   selectedInvoice: Invoice | null;
   selectInvoice: (invoice: Invoice) => void;
   clearSelectedInvoice: () => void;
@@ -23,7 +24,7 @@ export function InvoiceProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <InvoiceContext.Provider value={{ invoices, selectedInvoice, selectInvoice, clearSelectedInvoice }}>
+    <InvoiceContext.Provider value={{ invoices, setInvoices, selectedInvoice, selectInvoice, clearSelectedInvoice }}>
       {children}
     </InvoiceContext.Provider>
   );

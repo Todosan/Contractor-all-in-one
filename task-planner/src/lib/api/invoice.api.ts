@@ -14,15 +14,24 @@ export async function getInvoices() {
 }
 
 // Create New Invoice
-export async function createInvoice(invoice: { description: string; amount: number; issuedAt?: string; dueDate: string; client: string }) {
+export const createInvoice = async (invoiceData: {
+  invoiceNumber: string;
+  clientName: string;
+  description: string;
+  amount: number;
+  dueDate: string;
+  issuedAt: string;
+  paid: boolean;
+  taskIds: number[];
+}) => {
   try {
-    const response = await axios.post(`${API_URL}/invoices/`, invoice);
+    const response = await axios.post(`${API_URL}/invoices/`, invoiceData);
     return response.data;
   } catch (error) {
     console.error('Error creating invoice:', error);
-    throw new Error("Failed to create invoice");
+    throw error;
   }
-}
+};
 
 // Get Single Invoice
 export async function getInvoice(id: number) {
@@ -36,7 +45,7 @@ export async function getInvoice(id: number) {
 }
 
 // Update Invoice
-export async function updateInvoice(id: number, invoice: { description: string; amount: number; dueDate: string; paid: boolean }) {
+export async function updateInvoice(id: number, invoice: { invoiceNumber: string; clientName: string; description: string; amount: number; dueDate: string; issuedAt: string; paid: boolean; taskIds: number[] }) {
   try {
     const response = await axios.put(`${API_URL}/invoices/${id}`, invoice);
     return response.data;
