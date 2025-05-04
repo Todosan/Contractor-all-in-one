@@ -1,119 +1,82 @@
-from fastapi import APIRouter, HTTPException
-from prisma import Prisma
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
+from typing import List, Optional
 from datetime import datetime
-from typing import Optional, List
-from app.database import db
-import uuid
 
-router = APIRouter()
+from app.database import get_db
+from app.models import Invoice as InvoiceModel, Task as TaskModel
+from app.schemas.task import InvoiceCreate, InvoiceRead, InvoiceUpdate
 
-class InvoiceIn(BaseModel):
-    invoiceNumber: str
-    clientName: str
-    description: str
-    amount: float
-    issuedAt: Optional[datetime] = None
-    dueDate: datetime
-    paid: bool = False
-    taskIds: Optional[List[int]] = None
+router = APIRouter(prefix="/invoices", tags=["invoices"])
 
-
-@router.post("/invoices/")
-async def create_invoice(invoice: InvoiceIn):
-    try:
-        # Log the incoming data
-        print("\n=== Invoice Creation Debug ===")
-        print(f"Received invoice data: {invoice.dict()}")
-        print(f"Client name: {invoice.clientName}")
-        print(f"Description: {invoice.description}")
-        print(f"Amount: {invoice.amount}")
-        print(f"Due date: {invoice.dueDate}")
-        print(f"Issued at: {invoice.issuedAt}")
-        print(f"Paid: {invoice.paid}")
-        print(f"Task IDs: {invoice.taskIds}")
-        print("=== End of Received Data ===\n")
-        
-        # Convert the dates to datetime objects
-        issued_at = invoice.issuedAt or datetime.now()
-        due_date = invoice.dueDate
-
-        # Prepare the data for Prisma
-        invoice_data = {
-            "invoiceNumber": invoice.invoiceNumber,
-            "clientName": invoice.clientName,
-            "description": invoice.description,
-            "amount": invoice.amount,
-            "issuedAt": issued_at,
-            "dueDate": due_date,
-            "paid": invoice.paid,
-            "tasks": {
-                "connect": [{"id": task_id} for task_id in invoice.taskIds] if invoice.taskIds else []
-            }
-        }
-        
-        # Log the data being sent to Prisma
-        print("\n=== Prisma Data Debug ===")
-        print(f"Sending to Prisma: {invoice_data}")
-        print(f"Invoice number to Prisma: {invoice_data['invoiceNumber']}")
-        print(f"Client name to Prisma: {invoice_data['clientName']}")
-        print(f"Description to Prisma: {invoice_data['description']}")
-        print(f"Amount to Prisma: {invoice_data['amount']}")
-        print(f"Due date to Prisma: {invoice_data['dueDate']}")
-        print(f"Issued at to Prisma: {invoice_data['issuedAt']}")
-        print(f"Paid to Prisma: {invoice_data['paid']}")
-        print(f"Tasks to Prisma: {invoice_data['tasks']}")
-        print("=== End of Prisma Data ===\n")
-
-        # Create the invoice using Prisma
-        created_invoice = await db.invoice.create(data=invoice_data)
-        
-        # Convert the result to a dictionary
-        invoice_dict = {
-            "id": created_invoice.id,
-            "invoiceNumber": created_invoice.invoiceNumber,
-            "clientName": created_invoice.clientName,
-            "description": created_invoice.description,
-            "amount": created_invoice.amount,
-            "issuedAt": created_invoice.issuedAt,
-            "dueDate": created_invoice.dueDate,
-            "paid": created_invoice.paid,
-            "tasks": created_invoice.tasks
-        }
-        
-        return invoice_dict
-    except Exception as e:
-        print(f"\n=== Error Debug ===")
-        print(f"Error creating invoice: {str(e)}")
-        print(f"Error type: {type(e)}")
-        print(f"Error details: {e.__dict__}")
-        print("=== End of Error ===\n")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/invoices/{invoice_id}")
-async def get_invoice(invoice_id: int):
-    invoice = await db.invoice.find_unique(
-        where={"id": invoice_id},
-        include={"tasks": True}  # Include tasks if you want
+@router.post("/", response_model=InvoiceRead)
+def create_invoice(
+    invoice_in: InvoiceCreate,
+    db: Session = Depends(get_db)
+):
+    issued_at = invoice_in.issued_at or datetime.utcnow()
+    db_invoice = InvoiceModel(
+        invoice_number=invoice_in.invoice_number,
+        client_name=invoice_in.client_name,
+        description=invoice_in.description,
+        amount=invoice_in.amount,
+        issued_at=issued_at,
+        due_date=invoice_in.due_date,
+        paid=invoice_in.paid,
     )
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-    return invoice
 
-@router.put("/invoices/{invoice_id}")
-async def update_invoice(invoice_id: int, invoice: InvoiceIn):
-    updated = await db.invoice.update(
-        where={"id": invoice_id},
-        data=invoice.dict(exclude_unset=True)
-    )
-    if not updated:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-    return updated
+    if invoice_in.task_ids:
+        tasks = db.query(TaskModel).filter(TaskModel.id.in_(invoice_in.task_ids)).all()
+        db_invoice.tasks = tasks
 
-@router.delete("/invoices/{invoice_id}")
-async def delete_invoice(invoice_id: int):
-    deleted = await db.invoice.delete(where={"id": invoice_id})
-    if not deleted:
+    db.add(db_invoice)
+    db.commit()
+    db.refresh(db_invoice)
+    return db_invoice
+
+
+@router.get("/", response_model=List[InvoiceRead])
+def get_invoices(db: Session = Depends(get_db)):
+    return db.query(InvoiceModel).all()
+
+
+@router.get("/{invoice_id}", response_model=InvoiceRead)
+def get_invoice(invoice_id: int, db: Session = Depends(get_db)):
+    inv = db.query(InvoiceModel).get(invoice_id)
+    if not inv:
         raise HTTPException(status_code=404, detail="Invoice not found")
+    return inv
+
+
+@router.put("/{invoice_id}", response_model=InvoiceRead)
+def update_invoice(
+    invoice_id: int,
+    invoice_in: InvoiceUpdate,
+    db: Session = Depends(get_db)
+):
+    inv = db.query(InvoiceModel).get(invoice_id)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    data = invoice_in.dict(exclude_unset=True)
+    task_ids = data.pop("task_ids", None)
+    for field, value in data.items():
+        setattr(inv, field, value)
+
+    if task_ids is not None:
+        tasks = db.query(TaskModel).filter(TaskModel.id.in_(task_ids)).all()
+        inv.tasks = tasks
+
+    db.commit()
+    db.refresh(inv)
+    return inv
+
+
+@router.delete("/{invoice_id}", response_model=dict)
+def delete_invoice(invoice_id: int, db: Session = Depends(get_db)):
+    inv = db.query(InvoiceModel).get(invoice_id)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    db.delete(inv)
+    db.commit()
     return {"ok": True}

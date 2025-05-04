@@ -1,18 +1,22 @@
 from pydantic import BaseModel
+from typing import Optional
 
+# ----- Task schemas -----
 class TaskBase(BaseModel):
     title: str
-    description: str | None = None
+    description: Optional[str] = None
+    completed: bool = False
 
 class TaskCreate(TaskBase):
     pass
 
-class TaskUpdate(TaskBase):
-    completed: bool
+class TaskUpdate(BaseModel):
+    title: Optional[str]
+    description: Optional[str]
+    completed: Optional[bool]
 
-class TaskOut(TaskBase):
+class TaskRead(TaskBase):
     id: int
-    completed: bool
 
     class Config:
         orm_mode = True
